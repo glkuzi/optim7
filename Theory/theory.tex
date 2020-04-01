@@ -1,0 +1,91 @@
+% !TeX spellcheck = ru_RU
+\documentclass[12pt]{report}
+\usepackage[a4paper, top=2.5cm]{geometry}
+%\usepackage{fancyhdr}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}                       % if you are not using xelatex ou lualatex, replace by the encoding you are using
+%\usepackage{sansmathaccent}
+%\pdfmapfile{+sansmathaccent.map}
+\usepackage{amsmath}
+%\usepackage{amsfonts}
+\usepackage[english,russian]{babel}
+\usepackage{graphicx}
+\graphicspath{{pictures/}}
+\DeclareGraphicsExtensions{.pdf,.png,.jpg}
+\usepackage{caption}
+\usepackage{textpos}
+\usepackage{paracol}
+\usepackage{hyperref}
+\hypersetup{
+	colorlinks=true,
+	linkcolor=blue,
+	filecolor=magenta,      
+	urlcolor=cyan,
+}
+
+\newenvironment{myparacol}[2][]{%
+	\begin{paracol}{#2}[#1]\setlength{\parindent}{0pt}}{%
+	\end{paracol}}
+\begin{document}
+
+%\begin{comment}
+
+\begin{titlepage}
+	%\setcounter{page}{1}
+	%\thispagestyle{empty}
+	\begin{center}
+		Федеральное государственное автономное образовательное\\ учреждение
+		высшего образования\\
+		"Московский физико-технический институт\\ (национальный исследовательский университет)"\\
+		Физтех-школа прикладной математики и информатики\\
+		Кафедра системных исследований\\
+	\end{center}
+	\textbf{Направление подготовки:} 03.04.01 Прикладные математика и физика\\
+	\textbf{Направленность (профиль) подготовки:} Методы и технологии искусственного интеллекта
+	\begin{center}
+		\vspace{4cm}
+		\textbf{Проект по методам оптимизации №7}\\
+		\vspace{4cm}
+	\end{center}
+	\begin{myparacol}{2}
+		\switchcolumn
+		\textbf{Студенты:}\\
+		Кузьмин Глеб Юрьевич\\
+		Шарафутдинов Якуб Насырьянович\\
+	\end{myparacol}
+	\begin{center}
+		\vspace{6cm}
+		\textbf{г. Долгопрудный\\
+			2020}
+	\end{center}
+\end{titlepage}
+
+%\end{comment}
+\paragraph{}Рассматривается функция Нестерова-Скокова:
+\begin{equation}\label{Nesterov-Skokov}
+f(x)=\frac{1}{4}(x_{1}-1)^{2}+\sum_{i=1}^{n-1}(x_{i+1}-2x_{i}^{2}+1)^{2}.
+\end{equation} 
+Экстремум функция достигает в точке глобального минимума $x_{*}=(1,1,...,1)$, $f(x_{*})=0$.
+
+Требуется доказать, что функция Нестерова-Скокова удовлетворяет условию Поляка-Лоясиевича:
+\begin{equation}\label{condition}
+f(x)-f(x_{*})\leq\frac{1}{2\mu}||\nabla f(x)||_{2}^{2}.
+\end{equation}
+Используя переход от функции к системе уравнений, использованный в \href{https://arxiv.org/pdf/1711.00394.pdf}{пособии} (стр. 27), получим матрицу Якоби для системы уравнений $g$. В нашем случае функция $f(x)$ соответствует системе уравнений $g$ следующего вида: $x_{1}=1$, $x_{2}=2x_{1}^{2}-1$, $x_{3}=2x_{2}^{2}-1$, ..., $x_{n}=2x_{n-1}^{2}-1$. Для оценки числа обусловленности воспользуемся условием из пособия:
+\begin{equation}\label{condition2}
+\lambda_{min}(\partial g(x)/\partial x\cdot [\partial g(x)/\partial x]^{T})\geq\mu
+\end{equation}
+и верхней оценкой для $L$: $L\geq tr(\partial g(x)/\partial x\cdot [\partial g(x)/\partial x]^{T})$. Обозначим матрицу $\partial g(x)/\partial x\cdot [\partial g(x)/\partial x]^{T}$ как $G$, тогда:
+\begin{equation}\label{matrix}
+G= \begin{pmatrix}
+	1 & 0 & 0 & ... & 0\\
+	4x_{1} & (4x_{1})^{2} + 1 & 0 & ... & 0\\
+	16(2x_{1}^{3}-x_{1}) & 4x_{1}(16(2x_{1}^{3}-x_{1})) + 4x_{2} & (16(2x_{1}^{3}-x_{1}))^{2} + (4x_{2})^{2} + 1 & ... & 0\\
+	... & ... & ... & ... & ...\\
+	\frac{\partial x_{n}}{\partial x_{1}} & ... & ... & ... & (\frac{\partial x_{n}}{\partial x_{1}})^{2} + ... + 1
+   \end{pmatrix}.
+\end{equation}
+Таким образом получим $\mu=1$ и $L=((4x_{1})^{2} + 1)\cdot((16(2x_{1}^{3}-x_{1}))^{2} + (4x_{2})^{2} + 1)\cdots((\frac{\partial x_{n}}{\partial x_{1}})^{2} + ... + 1)$. В итоге мы получили что функция $f(x)$ удовлетворяет условию Поляка-Лоясиевича, но с очень большим числом обусловленности $\frac{L}{\mu}$.
+
+
+\end{document}
