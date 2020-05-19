@@ -70,8 +70,8 @@ class NTS(Optimizer):
         f = (F ** 2).sum()
         f_i = self.get_f_value()
 
-        print('f_i = {}  f = {}  L = {}  lr = {}  n_recurse = {}'.format(f_i, f, self.defaults['L'], self.defaults['lr'], self.defaults['n_recurse']))
-        print(self.defaults['indices'])
+        #print('f_i = {}  f = {}  L = {}  lr = {}  n_recurse = {}'.format(f_i, f, self.defaults['L'], self.defaults['lr'], self.defaults['n_recurse']))
+        #print(self.defaults['indices'])
         #print(self.param_groups[0]['params'])
         #q = input()
         if self.defaults['adaptive_lr']:
@@ -89,7 +89,7 @@ class NTS(Optimizer):
                     self.defaults['lr'] *= 1e1
 
             if f_i > f:
-                print('!as')
+                #print('!as')
                 self.defaults['lr'] *= 1e-1
                 self.defaults['flag_lr'] = True
         else:
