@@ -16,11 +16,12 @@ class NTS(Optimizer):
 
     """
 
-    def __init__(self, params, function, x0=None, y0=None, lr=1e-2, L=1, epoch=100, adaptive_lr=False, adaptive_L=False, limit_L=1e-10, limit_recurse=10, r=None):
+    def __init__(self, params, function, x0=None, y0=None, lr=1e-2, L=1, epoch=100, adaptive_lr=False, adaptive_L=False, limit_L=1e-10, limit_recurse=10, r=None, seed=None):
         if not 0.0 <= lr:
             raise ValueError("Invalid learning rate: {}".format(lr))
 
-
+        random.seed(seed)
+        
         defaults = dict(function=function, x0=x0, lr=lr, L=L, epoch=epoch, 
                         adaptive_lr=adaptive_lr, adaptive_L=adaptive_L, limit_L=limit_L, 
                         limit_recurse=limit_recurse, n_recurse=0, r=r, flag_L=False, flag_lr=False, indices=None)
