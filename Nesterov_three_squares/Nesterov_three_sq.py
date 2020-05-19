@@ -119,7 +119,7 @@ class NTS(Optimizer):
             params = self.get_params(self.param_groups)
             F = self.defaults['function'](*params)
         else:
-            F = self.defaults['function'](self.defaults['x0']) - self.defaults['y_pred']
+            F = self.defaults['function'](self.defaults['x0']) - self.defaults['y_true']
 
         grad_F = []
         for F_i in F:
