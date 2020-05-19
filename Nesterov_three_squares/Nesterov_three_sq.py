@@ -71,9 +71,11 @@ class NTS(Optimizer):
         f_i = self.get_f_value()
 
         print('f_i = {}  f = {}  L = {}  lr = {}  n_recurse = {}'.format(f_i, f, self.defaults['L'], self.defaults['lr'], self.defaults['n_recurse']))
-        print(self.param_groups[0]['params'])
+        print(self.defaults['indices'])
+        #print(self.param_groups[0]['params'])
+        #q = input()
         if self.defaults['adaptive_lr']:
-            if (torch.isnan(f_i) or torch.isinf(f_i)):
+            if torch.isnan(f_i) or torch.isinf(f_i):
                 
                 self.defaults['flag_lr'] = True
                 self.defaults['lr'] *= 1e-1
@@ -82,9 +84,14 @@ class NTS(Optimizer):
                 
             else:
 
-                if self.defaults['lr'] < 1e-1 and not self.defaults['flag_lr']:
-                    self.defaults['flag_lr'] = False
+                if self.defaults['lr'] < 1e-1 and not self.defaults['flag_lr'] and f_i <= f:
+                    #self.defaults['flag_lr'] = False
                     self.defaults['lr'] *= 1e1
+
+            if f_i > f:
+                print('!as')
+                self.defaults['lr'] *= 1e-1
+                self.defaults['flag_lr'] = True
         else:
             if torch.isnan(f_i):
                 raise Exception('Loss function value nan. Try choose smaller value of learning rate')
