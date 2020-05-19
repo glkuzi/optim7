@@ -67,7 +67,7 @@ class NTS(Optimizer):
         f = (F ** 2).sum()
         f_i = self.get_f_value()
 
-        print('f_i = {}  f = {}  L = {}  lr = {}'.format(f_i, f, self.defaults['L'], self.defaults['lr']))
+        #print('f_i = {}  f = {}  L = {}  lr = {}'.format(f_i, f, self.defaults['L'], self.defaults['lr']))
         if self.defaults['adaptive_lr']:
             if (torch.isnan(f_i) or torch.isinf(f_i)):
                 
