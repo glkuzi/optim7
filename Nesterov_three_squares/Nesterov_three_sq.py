@@ -67,7 +67,7 @@ class NTS(Optimizer):
         f = (F ** 2).sum()
         f_i = self.get_f_value()
 
-
+        print('f_i = {}  f = {}  L = {}  lr = {}'.format(f_i, f, self.defaults['L'], self.defaults['lr']))
         if self.defaults['adaptive_lr']:
             if (torch.isnan(f_i) or torch.isinf(f_i)):
                 
@@ -88,10 +88,13 @@ class NTS(Optimizer):
                 if self.defaults['L'] > self.defaults['limit_L']:
                     self.defaults['L'] /= 2
                 else:
+                    self.defaults['flag_L'] = False
+                    self.defaults['flag_lr'] = False
                     return loss
                 
                 if self.defaults['flag_L']:
                     self.defaults['flag_L'] = False
+                    self.defaults['flag_lr'] = False
                     return loss
                 else:
                     self.copy_params(buf_params)
@@ -161,7 +164,7 @@ class NTS(Optimizer):
 
         else:
 
-            return (self.defaults['function'](self.defaults['x0']) ** 2).sum()
+            return ((self.defaults['function'](self.defaults['x0']) - self.defaults['y_true']) ** 2).sum()
 
 
     def get_params(self, param_groups_k):
