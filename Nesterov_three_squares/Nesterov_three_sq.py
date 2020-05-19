@@ -15,7 +15,7 @@ class NTS(Optimizer):
 
     """
 
-    def __init__(self, params, function, x0=None, lr=1e-2, L=1, epoch=100, adaptive_lr=False, adaptive_L=False, limit_L=1e-10):
+    def __init__(self, params, function, x0=None, y0=None, lr=1e-2, L=1, epoch=100, adaptive_lr=False, adaptive_L=False, limit_L=1e-10):
         if not 0.0 <= lr:
             raise ValueError("Invalid learning rate: {}".format(lr))
 
@@ -107,9 +107,10 @@ class NTS(Optimizer):
         return loss
 
 
-    def set_x(self, x0):
+    def set_x(self, x0, y_true):
 
         self.defaults['x0'] = x0
+        self.defaults['y_true'] = y_true
 
 
     def func_and_grad(self):
@@ -118,7 +119,7 @@ class NTS(Optimizer):
             params = self.get_params(self.param_groups)
             F = self.defaults['function'](*params)
         else:
-            F = self.defaults['function'](self.defaults['x0'])
+            F = self.defaults['function'](self.defaults['x0']) - self.defaults['y_pred']
 
         grad_F = []
         for F_i in F:
