@@ -3,6 +3,7 @@ import math as m
 from torch.optim.optimizer import Optimizer
 from torch.autograd import backward
 from copy import deepcopy
+import random
 from fgm import FGM
 
 class NTS(Optimizer):
@@ -15,13 +16,14 @@ class NTS(Optimizer):
 
     """
 
-    def __init__(self, params, function, x0=None, y0=None, lr=1e-2, L=1, epoch=100, adaptive_lr=False, adaptive_L=False, limit_L=1e-10):
+    def __init__(self, params, function, x0=None, y0=None, lr=1e-2, L=1, epoch=100, adaptive_lr=False, adaptive_L=False, limit_L=1e-10, limit_recurse=10, r=None):
         if not 0.0 <= lr:
             raise ValueError("Invalid learning rate: {}".format(lr))
 
 
         defaults = dict(function=function, x0=x0, lr=lr, L=L, epoch=epoch, 
-                        adaptive_lr=adaptive_lr, adaptive_L=adaptive_L, limit_L=limit_L, flag_L=False, flag_lr=False,)
+                        adaptive_lr=adaptive_lr, adaptive_L=adaptive_L, limit_L=limit_L, 
+                        limit_recurse=limit_recurse, n_recurse=0, r=r, flag_L=False, flag_lr=False, indices=None)
         super(NTS, self).__init__(params, defaults)
   
 
@@ -67,7 +69,7 @@ class NTS(Optimizer):
         f = (F ** 2).sum()
         f_i = self.get_f_value()
 
-        #print('f_i = {}  f = {}  L = {}  lr = {}'.format(f_i, f, self.defaults['L'], self.defaults['lr']))
+        #print('f_i = {}  f = {}  L = {}  lr = {}  n_recurse = {}'.format(f_i, f, self.defaults['L'], self.defaults['lr'], self.defaults['n_recurse']))
         if self.defaults['adaptive_lr']:
             if (torch.isnan(f_i) or torch.isinf(f_i)):
                 
@@ -85,19 +87,22 @@ class NTS(Optimizer):
         if self.defaults['adaptive_L']:
             if f_i <= f:
                 
-                if self.defaults['L'] > self.defaults['limit_L']:
+                if self.defaults['L'] > self.defaults['limit_L'] and self.defaults['n_recurse'] < self.defaults['limit_recurse']:
                     self.defaults['L'] /= 2
                 else:
                     self.defaults['flag_L'] = False
                     self.defaults['flag_lr'] = False
+                    self.defaults['n_recurse'] = 0
                     return loss
                 
                 if self.defaults['flag_L']:
                     self.defaults['flag_L'] = False
                     self.defaults['flag_lr'] = False
+                    self.defaults['n_recurse'] = 0
                     return loss
                 else:
                     self.copy_params(buf_params)
+                    self.defaults['n_recurse'] += 1
                     return self.step(closure=closure)
             else:
                 self.defaults['flag_L'] = True
@@ -114,15 +119,21 @@ class NTS(Optimizer):
 
         self.defaults['x0'] = x0
         self.defaults['y_true'] = y_true
+        
+        if self.defaults['r'] is None:
+            self.defaults['indices'] = list(range(y_true.shape[0]))
+        else:
+            self.defaults['indices'] = random.sample(list(range(y_true.shape[0])), self.defaults['r'])
+        
 
 
     def func_and_grad(self):
 
         if self.defaults['x0'] is None:
             params = self.get_params(self.param_groups)
-            F = self.defaults['function'](*params)
+            F = self.defaults['function'](*params)[self.defaults['indices']]
         else:
-            F = self.defaults['function'](self.defaults['x0']) - self.defaults['y_true']
+            F = (self.defaults['function'](self.defaults['x0']) - self.defaults['y_true'])[self.defaults['indices']]
 
         grad_F = []
         for F_i in F:
@@ -164,7 +175,7 @@ class NTS(Optimizer):
 
         else:
 
-            return ((self.defaults['function'](self.defaults['x0']) - self.defaults['y_true']) ** 2).sum()
+            return ((self.defaults['function'](self.defaults['x0']) - self.defaults['y_true'])[self.defaults['indices']] ** 2).sum()
 
 
     def get_params(self, param_groups_k):
