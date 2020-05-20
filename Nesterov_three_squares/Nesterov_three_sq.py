@@ -81,9 +81,9 @@ class NTS(Optimizer):
 
         else:
 
-            if torch.isnan(f_i):
+            if torch.isnan(f_nes):
                 raise Exception('Loss function value nan. Try choose smaller value of learning rate')
-            if torch.isinf(f_i):
+            if torch.isinf(f_nes):
                 raise Exception('Loss function value inf. Try choose smaller value of learning rate')
 
 
