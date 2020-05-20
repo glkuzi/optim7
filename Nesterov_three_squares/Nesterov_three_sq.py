@@ -48,6 +48,7 @@ class NTS(Optimizer):
         F, grad_F = self.func_and_grad()
         self.make_grad(False)
 
+        f_nes_0 = self.get_f_nes(param_groups_k, F, grad_F)
 
         optimizer = FGM(params_k, lr=self.defaults['lr'])
 
@@ -55,6 +56,8 @@ class NTS(Optimizer):
 
             f_nes = self.get_f_nes(param_groups_k, F, grad_F)
 
+            
+            #print('f_nes = {}'.format(f_nes))
 
             optimizer.zero_grad()
             f_nes.backward()
@@ -63,43 +66,41 @@ class NTS(Optimizer):
         self.make_grad()
                 
         f_nes = self.get_f_nes(param_groups_k, F, grad_F)
-
-        buf_params = deepcopy(self.param_groups)
-        self.copy_params(param_groups_k)
-
-        f = (F ** 2).sum()
-        f_i = self.get_f_value()
-
-        #print('f_i = {}  f = {}  L = {}  lr = {}  n_recurse = {}'.format(f_i, f, self.defaults['L'], self.defaults['lr'], self.defaults['n_recurse']))
-        #print(self.defaults['indices'])
-        #print(self.param_groups[0]['params'])
-        #q = input()
+        
         if self.defaults['adaptive_lr']:
-            if torch.isnan(f_i) or torch.isinf(f_i):
-                
+            if f_nes_0 < f_nes or torch.isnan(f_nes) or torch.isinf(f_nes):
+                #print('Damn!')
                 self.defaults['flag_lr'] = True
                 self.defaults['lr'] *= 1e-1
-                self.copy_params(buf_params)
                 return self.step(closure=closure)
-                
+
             else:
 
-                if self.defaults['lr'] < 1e-1 and not self.defaults['flag_lr'] and f_i <= f:
-                    #self.defaults['flag_lr'] = False
+                if self.defaults['lr'] < 1e-1 and not self.defaults['flag_lr']:
                     self.defaults['lr'] *= 1e1
 
-            if f_i > f:
-                #print('!as')
-                self.defaults['lr'] *= 1e-1
-                self.defaults['flag_lr'] = True
         else:
+
             if torch.isnan(f_i):
                 raise Exception('Loss function value nan. Try choose smaller value of learning rate')
             if torch.isinf(f_i):
                 raise Exception('Loss function value inf. Try choose smaller value of learning rate')
 
+
+
+        buf_params = deepcopy(self.param_groups)
+        self.copy_params(param_groups_k)
+
+        f = (F ** 2).sum() ** 0.5
+        f_i = self.get_f_value()
+
+        #print('f_i = {}  f_nes = {}  L = {}  lr = {}  n_recurse = {}'.format(f_i, f_nes, self.defaults['L'], self.defaults['lr'], self.defaults['n_recurse']))
+        #print(self.defaults['indices'])
+        #print(self.param_groups[0]['params'])
+        #q = input()
+
         if self.defaults['adaptive_L']:
-            if f_i <= f:
+            if f_i <= f_nes:
                 
                 if self.defaults['L'] > self.defaults['limit_L'] and self.defaults['n_recurse'] < self.defaults['limit_recurse']:
                     self.defaults['L'] /= 2
@@ -185,11 +186,11 @@ class NTS(Optimizer):
         if self.defaults['x0'] is None:
             
             params = self.get_params(self.param_groups)
-            return (self.defaults['function'](*params) ** 2).sum()
+            return (self.defaults['function'](*params) ** 2).sum() ** 0.5
 
         else:
 
-            return ((self.defaults['function'](self.defaults['x0']) - self.defaults['y_true'])[self.defaults['indices']] ** 2).sum()
+            return ((self.defaults['function'](self.defaults['x0']) - self.defaults['y_true'])[self.defaults['indices']] ** 2).sum() ** 0.5
 
 
     def get_params(self, param_groups_k):
