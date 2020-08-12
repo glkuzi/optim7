@@ -7,7 +7,7 @@ import random
 from fgm import FGM
 
 class NTS(Optimizer):
-    """Implements Fast Gradient Method for convex functions.
+    """Implements Nesterov Three squares method.
 
     Arguments:
         params (iterable): iterable of parameters to optimize or dicts defining
@@ -16,15 +16,18 @@ class NTS(Optimizer):
 
     """
 
-    def __init__(self, params, function, x0=None, y0=None, lr=1e-2, L=1, epoch=100, adaptive_lr=False, adaptive_L=False, limit_L=1e-10, limit_recurse=10, r=None, seed=None):
+    def __init__(self, params, function, x_in=None, y_target=None, lr=1e-2, L=1, \
+        epoch=100, adaptive_lr=False, adaptive_L=False, limit_L=1e-10, \
+            limit_recurse=10, r=None, seed=None, break_L=1e20, break_lr=0):
         if not 0.0 <= lr:
             raise ValueError("Invalid learning rate: {}".format(lr))
 
         random.seed(seed)
         
-        defaults = dict(function=function, x0=x0, lr=lr, L=L, epoch=epoch, 
+        defaults = dict(function=function, x_in=x_in, y_targer=y_target, lr=lr, L=L, epoch=epoch, 
                         adaptive_lr=adaptive_lr, adaptive_L=adaptive_L, limit_L=limit_L, 
-                        limit_recurse=limit_recurse, n_recurse=0, r=r, flag_L=False, flag_lr=False, indices=None)
+                        limit_recurse=limit_recurse, n_recurse=0, r=r, flag_L=False, flag_lr=False,
+                        indices=None, break_L=break_L, break_lr=break_lr)
         super(NTS, self).__init__(params, defaults)
   
 
@@ -40,6 +43,10 @@ class NTS(Optimizer):
         if closure is not None:
             loss = closure()
 
+        if self.defaults['L'] >= self.defaults['break_L'] \
+            or self.defaults['lr'] <= self.defaults['break_lr']:
+            return loss
+
 
         param_groups_k = deepcopy(self.param_groups)
         params_k = self.get_params(param_groups_k)
@@ -48,16 +55,11 @@ class NTS(Optimizer):
         F, grad_F = self.func_and_grad()
         self.make_grad(False)
 
-        f_nes_0 = self.get_f_nes(param_groups_k, F, grad_F)
-
         optimizer = FGM(params_k, lr=self.defaults['lr'])
 
         for i in range(self.defaults['epoch']):
 
             f_nes = self.get_f_nes(param_groups_k, F, grad_F)
-
-            
-            #print('f_nes = {}'.format(f_nes))
 
             optimizer.zero_grad()
             f_nes.backward()
@@ -66,27 +68,6 @@ class NTS(Optimizer):
         self.make_grad()
                 
         f_nes = self.get_f_nes(param_groups_k, F, grad_F)
-        
-        if self.defaults['adaptive_lr']:
-            if f_nes_0 < f_nes or torch.isnan(f_nes) or torch.isinf(f_nes):
-                #print('Damn!')
-                self.defaults['flag_lr'] = True
-                self.defaults['lr'] *= 1e-1
-                return self.step(closure=closure)
-
-            else:
-
-                if self.defaults['lr'] < 1e-1 and not self.defaults['flag_lr']:
-                    self.defaults['lr'] *= 1e1
-
-        else:
-
-            if torch.isnan(f_nes):
-                raise Exception('Loss function value nan. Try choose smaller value of learning rate')
-            if torch.isinf(f_nes):
-                raise Exception('Loss function value inf. Try choose smaller value of learning rate')
-
-
 
         buf_params = deepcopy(self.param_groups)
         self.copy_params(param_groups_k)
@@ -94,13 +75,36 @@ class NTS(Optimizer):
         f = (F ** 2).sum() ** 0.5
         f_i = self.get_f_value()
 
-        #print('f_i = {}  f_nes = {}  L = {}  lr = {}  n_recurse = {}'.format(f_i, f_nes, self.defaults['L'], self.defaults['lr'], self.defaults['n_recurse']))
+        print('f_i = {}  f = {}  L = {}  lr = {}  n_recurse = {}'.format(f_i, f, self.defaults['L'], self.defaults['lr'], self.defaults['n_recurse']))
         #print(self.defaults['indices'])
         #print(self.param_groups[0]['params'])
         #q = input()
+        if self.defaults['adaptive_lr']:
+            if torch.isnan(f_i) or torch.isinf(f_i):
+                
+                self.defaults['flag_lr'] = True
+                self.defaults['lr'] *= 1e-1
+                self.copy_params(buf_params)
+                return self.step(closure=closure)
+                
+            else:
+
+                if self.defaults['lr'] < 1e-1 and not self.defaults['flag_lr'] and f_i <= f:
+                    #self.defaults['flag_lr'] = False
+                    self.defaults['lr'] *= 1e1
+
+            if f_i > f:
+                #print('!as')
+                self.defaults['lr'] *= 1e-1
+                self.defaults['flag_lr'] = True
+        else:
+            if torch.isnan(f_i):
+                raise Exception('Loss function value nan. Try choose smaller value of learning rate')
+            if torch.isinf(f_i):
+                raise Exception('Loss function value inf. Try choose smaller value of learning rate')
 
         if self.defaults['adaptive_L']:
-            if f_i <= f_nes:
+            if f_i <= f:
                 
                 if self.defaults['L'] > self.defaults['limit_L'] and self.defaults['n_recurse'] < self.defaults['limit_recurse']:
                     self.defaults['L'] /= 2
@@ -130,29 +134,48 @@ class NTS(Optimizer):
         return loss
 
 
-    def set_x(self, x0, y_true):
+    def set_x(self, x_in, y_target):
 
-        self.defaults['x0'] = x0
-        self.defaults['y_true'] = y_true
+        self.defaults['x_in'] = x_in
+        self.defaults['y_target'] = y_target
         
-        if self.defaults['r'] is None:
-            self.defaults['indices'] = list(range(y_true.shape[0]))
+
+    def set_indices(self):
+
+        if self.defaults['x_in'] is None:
+            
+            params = self.get_params(self.param_groups)
+            F = self.defaults['function'](*params)
+            n = F.shape[0]
+        
         else:
-            self.defaults['indices'] = random.sample(list(range(y_true.shape[0])), self.defaults['r'])
+
+            n = self.defaults['x_in'].shape[0]
+
+        if self.defaults['r'] is None:
+            self.defaults['indices'] = list(range(n))
+        else:
+            self.defaults['indices'] = random.sample(list(range(n)), self.defaults['r'])
         
 
 
     def func_and_grad(self):
 
-        if self.defaults['x0'] is None:
+        self.set_indices()
+
+        if self.defaults['x_in'] is None:
             params = self.get_params(self.param_groups)
+            #print('params = {}'.format(*params))
+            #print('junc = {}'.format(self.defaults['indices']))
             F = self.defaults['function'](*params)[self.defaults['indices']]
         else:
-            F = (self.defaults['function'](self.defaults['x0']) - self.defaults['y_true'])[self.defaults['indices']]
+            F = (self.defaults['function'](self.defaults['x_in']) - self.defaults['y_target'])[self.defaults['indices']]
 
         grad_F = []
+        #print('F = {}'.format(F))
         for F_i in F:
 
+            #print('F_i = {} done\n\n'.format(F_i))
             backward(F_i, retain_graph=True)
 
             grad_groups = []
@@ -183,14 +206,14 @@ class NTS(Optimizer):
 
     def get_f_value(self):
 
-        if self.defaults['x0'] is None:
+        if self.defaults['x_in'] is None:
             
             params = self.get_params(self.param_groups)
             return (self.defaults['function'](*params) ** 2).sum() ** 0.5
 
         else:
 
-            return ((self.defaults['function'](self.defaults['x0']) - self.defaults['y_true'])[self.defaults['indices']] ** 2).sum() ** 0.5
+            return ((self.defaults['function'](self.defaults['x_in']) - self.defaults['y_target'])[self.defaults['indices']] ** 2).sum() ** 0.5
 
 
     def get_params(self, param_groups_k):
